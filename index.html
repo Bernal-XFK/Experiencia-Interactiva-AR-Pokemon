@@ -11,11 +11,14 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     
-    /* Fondo transparente para que no se vea blanco o negro */
     html, body { 
       width: 100%; height: 100%; overflow: hidden; 
       background: transparent !important; 
     }
+
+    /* ELIMINA EL RECUADRO BLANCO Y BOTONES DE AFRAME */
+    .a-canvas { width: 100% !important; height: 100% !important; }
+    .a-enter-vr, .a-enter-ar, .a-loader-title { display: none !important; }
 
     #desktop {
       position: fixed; inset: 0; z-index: 2000;
@@ -25,47 +28,47 @@
 
     #mobile-overlay {
       position: fixed; inset: 0; z-index: 3000;
-      background: rgba(11, 16, 32, 0.9); color: white;
+      background: #0b1020; color: white;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
     }
 
     #start-ar-btn {
-      padding: 20px 50px; font-size: 1.4rem; background: #ffcb05; color: #3b4cca;
-      border: 4px solid #3b4cca; border-radius: 50px; cursor: pointer; font-weight: bold;
-      text-transform: uppercase; box-shadow: 0 0 20px rgba(255, 203, 5, 0.5);
+      padding: 18px 45px; font-size: 1.3rem; background: #ffcb05; color: #3b4cca;
+      border: none; border-radius: 50px; cursor: pointer; font-weight: bold;
     }
 
-    /* Mejora visual de la cámara */
+    /* Ajuste de la cámara */
     video:not(#pokemon-video) {
       object-fit: cover !important;
       width: 100vw !important;
       height: 100vh !important;
+      position: fixed; top: 0; left: 0;
     }
 
     #debug {
       position: fixed; top: 10px; left: 10px; z-index: 4000;
-      background: rgba(0,0,0,0.6); color: #00ff88; padding: 5px; border-radius: 5px;
-      font-size: 9px; pointer-events: none; max-width: 70%;
+      background: rgba(0,0,0,0.5); color: #00ff88; padding: 5px; border-radius: 5px;
+      font-size: 9px; pointer-events: none;
     }
   </style>
 </head>
 <body>
 
-  <div id="debug">Iniciando...</div>
+  <div id="debug">Listo...</div>
 
   <div id="desktop">
     <h1>POKEMON AR</h1>
     <img src="./assets/marker.png" style="width:250px; margin:20px;">
-    <p>Usa tu móvil para escanear.</p>
+    <p>Escanea con tu celular.</p>
   </div>
 
   <div id="mobile-overlay">
-    <button id="start-ar-btn">ENTRAR A LA APP</button>
+    <button id="start-ar-btn">INICIAR EXPERIENCIA</button>
   </div>
 
   <a-scene
     id="ar-scene"
-    mindar-image="imageTargetSrc: ./assets/targets.mind; autoStart: false; uiLoading: no; uiScanning: no; filterMinCF:0.001; filterBeta: 0.01;"
+    mindar-image="imageTargetSrc: ./assets/targets.mind; autoStart: false; uiLoading: no; uiScanning: no; uiError: no;"
     embedded 
     color-space="sRGB"
     renderer="colorManagement: true; antialias: true; alpha: true; precision: high;"
@@ -87,6 +90,7 @@
     const log = (msg) => { document.getElementById("debug").innerHTML += "<br>> " + msg; };
     const isMobile = () => /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     const video = document.getElementById('pokemon-video');
+    const sceneEl = document.querySelector('a-scene');
 
     if (isMobile()) {
       document.getElementById("mobile-overlay").style.display = "flex";
@@ -95,40 +99,35 @@
     }
 
     document.getElementById("start-ar-btn").addEventListener("click", () => {
-      const sceneEl = document.querySelector('a-scene');
       document.getElementById("mobile-overlay").style.display = "none";
       
-      // 1. DESBLOQUEO DE VIDEO: Forzamos un play/pause rápido con sonido desactivado
-      video.play().then(() => {
-        video.pause();
-        log("Video listo para AR.");
-      });
+      // Desbloquear video
+      video.play().then(() => video.pause());
 
-      // 2. INICIO DEL MOTOR
       const arSystem = sceneEl.systems["mindar-image-system"];
       arSystem.start();
-      log("Motor iniciado.");
+      
+      // FORZAR REDIMENSIÓN (Quita el bloque blanco)
+      setTimeout(() => {
+        window.dispatchEvent(new Event('resize'));
+        log("Pantalla ajustada.");
+      }, 500);
     });
 
     const target = document.getElementById('target-anchor');
-    
     target.addEventListener("targetFound", () => {
-      log("Marcador detectado");
-      // Al detectar, activamos sonido y damos play
       video.muted = false; 
-      video.play().catch(e => {
-          log("Reintento de play...");
-          video.play();
-      });
+      video.play();
+      log("Detectado!");
     });
 
     target.addEventListener("targetLost", () => {
       video.pause();
     });
 
-    // Ajuste de calidad extra: forzar transparencia al cargar
-    document.querySelector('a-scene').addEventListener('render-target-loaded', () => {
-        document.querySelector('a-scene').renderer.setClearColor(0x000000, 0);
+    // Asegurar transparencia absoluta del fondo
+    sceneEl.addEventListener('render-target-loaded', () => {
+      sceneEl.renderer.setClearColor(0x000000, 0);
     });
   </script>
 </body>
