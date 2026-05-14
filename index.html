@@ -10,14 +10,14 @@
 
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { width: 100%; height: 100%; overflow: hidden; background: black; font-family: Arial, sans-serif; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #000; font-family: sans-serif; }
 
     #desktop {
       width: 100vw; height: 100vh; display: none;
       align-items: center; justify-content: center; flex-direction: column; gap: 20px;
-      background: #0b1020; color: white;
+      background: #0b1020; color: white; text-align: center;
     }
-    #desktop img { width: 320px; max-width: 80vw; border-radius: 20px; }
+    #desktop img { width: 300px; border-radius: 15px; border: 2px solid #00ff88; }
 
     #mobile { display: none; width: 100vw; height: 100vh; }
 
@@ -25,40 +25,40 @@
       position: fixed; inset: 0; z-index: 9999;
       background: #0b1020; color: white;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
-      text-align: center; padding: 20px;
     }
     #mobile-overlay button {
-      padding: 15px 40px; font-size: 1.2rem; background: #00ff88; color: #000;
-      border: none; border-radius: 10px; cursor: pointer; font-weight: bold; margin-top: 20px;
+      padding: 18px 45px; font-size: 1.3rem; background: #00ff88; color: #000;
+      border: none; border-radius: 50px; cursor: pointer; font-weight: bold;
     }
 
     #debug {
       position: fixed; bottom: 10px; left: 10px; z-index: 10000;
-      background: rgba(0,0,0,0.8); color: #00ff88; padding: 10px; border-radius: 10px; font-size: 11px;
-      max-width: 90%; pointer-events: none;
+      background: rgba(0,0,0,0.8); color: #00ff88; padding: 10px; border-radius: 8px;
+      font-size: 10px; max-width: 80%; pointer-events: none;
     }
   </style>
 </head>
-
 <body>
 
+  <div id="debug">Iniciando sistema...</div>
+
   <div id="desktop">
-    <h1>POKEMON AR EXPERIENCE</h1>
+    <h1>POKEMON AR</h1>
     <img src="./assets/marker.png" alt="marker" />
-    <p>Abre esta página en tu celular para ver la experiencia.</p>
+    <p>Escanea con tu celular para vivir la experiencia.</p>
   </div>
 
   <div id="mobile">
     <div id="mobile-overlay">
-      <h2>Experiencia AR</h2>
-      <button id="start-ar-btn">INICIAR CÁMARA</button>
+      <button id="start-ar-btn">ACTIVAR CÁMARA</button>
     </div>
 
     <a-scene
-      id="main-scene"
+      id="ar-scene"
       mindar-image="imageTargetSrc: ./assets/targets.mind; autoStart: false; uiLoading: no; uiScanning: no;"
-      embedded color-space="sRGB"
-      renderer="colorManagement: true; physicallyCorrectLights"
+      embedded 
+      color-space="sRGB"
+      renderer="colorManagement: true; physicallyCorrectLights: false"
       vr-mode-ui="enabled: false"
       device-orientation-permission-ui="enabled: false">
 
@@ -68,13 +68,11 @@
 
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-      <a-entity id="target-entity" mindar-image-target="targetIndex: 0">
+      <a-entity id="my-target" mindar-image-target="targetIndex: 0">
         <a-video src="#pokemon-video" position="0 0 0" width="1" height="1.77"></a-video>
       </a-entity>
     </a-scene>
   </div>
-
-  <div id="debug">Iniciando...</div>
 
   <script>
     const debug = document.getElementById("debug");
@@ -82,61 +80,60 @@
 
     function isMobile() { return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent); }
 
-    window.addEventListener("DOMContentLoaded", () => {
-      if (isMobile()) {
-        document.getElementById("desktop").style.display = "none";
-        document.getElementById("mobile").style.display = "block";
-      } else {
-        document.getElementById("desktop").style.display = "flex";
-        document.getElementById("mobile").style.display = "none";
-      }
-    });
+    // Validación inicial de vista
+    if (isMobile()) {
+      document.getElementById("mobile").style.display = "block";
+    } else {
+      document.getElementById("desktop").style.display = "flex";
+    }
 
     document.getElementById("start-ar-btn").addEventListener("click", async () => {
       const sceneEl = document.querySelector('a-scene');
       const video = document.getElementById('pokemon-video');
       
-      log("Pidiendo permiso de cámara...");
+      log("Botón pulsado.");
       
       try {
-        // Pedir permiso nativo
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-        stream.getTracks().forEach(track => track.stop());
-        log("Permiso concedido.");
-
-        // Ocultar UI
+        // 1. Desbloquear video
+        video.play().then(() => video.pause()).catch(() => {});
+        
+        // 2. Ocultar botón
         document.getElementById("mobile-overlay").style.display = "none";
 
-        // IMPORTANTE: Esperar a que el sistema de MindAR esté cargado en la escena
+        // 3. Arrancar el motor buscando el componente directamente en la escena
+        // Esta es la forma más segura si el system falla
         const startEngine = () => {
+          // Intentamos obtener el sistema de ambas formas posibles
           const arSystem = sceneEl.systems["mindar-image-system"];
-          if (arSystem) {
-            log("Motor encontrado. Arrancando...");
-            arSystem.start();
+          
+          if (arSystem && arSystem.start) {
+            log("Motor detectado. Arrancando cámara...");
+            arSystem.start(); 
           } else {
-            log("Esperando al motor...");
-            setTimeout(startEngine, 300); // Reintentar si no está listo
+            log("Buscando motor...");
+            setTimeout(startEngine, 200);
           }
         };
 
         startEngine();
 
       } catch (err) {
-        log("ERROR: " + err.message);
+        log("Error: " + err.message);
       }
     });
 
-    // Lógica de video al detectar
-    const target = document.getElementById('target-entity');
-    const video = document.getElementById('pokemon-video');
+    // Eventos de detección
+    const sceneEl = document.querySelector('a-scene');
+    sceneEl.addEventListener("arReady", () => log("¡Cámara lista!"));
+    sceneEl.addEventListener("arError", () => log("Error al iniciar AR."));
 
+    const target = document.getElementById('my-target');
     target.addEventListener("targetFound", () => {
-      log("¡Pokemon detectado!");
-      video.play();
+      log("POKEMON DETECTADO");
+      document.getElementById('pokemon-video').play();
     });
-
     target.addEventListener("targetLost", () => {
-      video.pause();
+      document.getElementById('pokemon-video').pause();
     });
   </script>
 </body>
