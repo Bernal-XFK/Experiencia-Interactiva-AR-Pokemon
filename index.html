@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>Pokemon AR Pro</title>
+  <title>Pokemon AR Fixed</title>
 
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
@@ -16,14 +16,14 @@
       background: transparent !important; 
     }
 
-    /* ELIMINA EL RECUADRO BLANCO Y BOTONES DE AFRAME */
-    .a-canvas { width: 100% !important; height: 100% !important; }
+    /* ELIMINA EL RECUADRO BLANCO */
+    .a-canvas { width: 100% !important; height: 100% !important; position: absolute; top:0; left:0; }
     .a-enter-vr, .a-enter-ar, .a-loader-title { display: none !important; }
 
     #desktop {
       position: fixed; inset: 0; z-index: 2000;
       display: none; align-items: center; justify-content: center; flex-direction: column;
-      background: #0b1020; color: white; text-align: center;
+      background: #0b1020; color: white;
     }
 
     #mobile-overlay {
@@ -37,12 +37,12 @@
       border: none; border-radius: 50px; cursor: pointer; font-weight: bold;
     }
 
-    /* Ajuste de la cámara */
+    /* Forzar video de cámara a fondo total */
     video:not(#pokemon-video) {
       object-fit: cover !important;
       width: 100vw !important;
       height: 100vh !important;
-      position: fixed; top: 0; left: 0;
+      position: fixed; top: 0; left: 0; z-index: -1;
     }
 
     #debug {
@@ -54,21 +54,21 @@
 </head>
 <body>
 
-  <div id="debug">Listo...</div>
+  <div id="debug">Iniciando...</div>
 
   <div id="desktop">
     <h1>POKEMON AR</h1>
     <img src="./assets/marker.png" style="width:250px; margin:20px;">
-    <p>Escanea con tu celular.</p>
+    <p>Abre este link en tu celular.</p>
   </div>
 
   <div id="mobile-overlay">
-    <button id="start-ar-btn">INICIAR EXPERIENCIA</button>
+    <button id="start-ar-btn">INICIAR CÁMARA</button>
   </div>
 
   <a-scene
     id="ar-scene"
-    mindar-image="imageTargetSrc: ./assets/targets.mind; autoStart: false; uiLoading: no; uiScanning: no; uiError: no;"
+    mindar-image="imageTargetSrc: ./assets/targets.mind; autoStart: false; uiLoading: no; uiScanning: no;"
     embedded 
     color-space="sRGB"
     renderer="colorManagement: true; antialias: true; alpha: true; precision: high;"
@@ -89,8 +89,8 @@
   <script>
     const log = (msg) => { document.getElementById("debug").innerHTML += "<br>> " + msg; };
     const isMobile = () => /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-    const video = document.getElementById('pokemon-video');
     const sceneEl = document.querySelector('a-scene');
+    const pokemonVideo = document.getElementById('pokemon-video');
 
     if (isMobile()) {
       document.getElementById("mobile-overlay").style.display = "flex";
@@ -99,33 +99,47 @@
     }
 
     document.getElementById("start-ar-btn").addEventListener("click", () => {
+      log("Botón pulsado. Preparando motor...");
       document.getElementById("mobile-overlay").style.display = "none";
       
-      // Desbloquear video
-      video.play().then(() => video.pause());
+      // Desbloqueo preventivo del video
+      pokemonVideo.play().then(() => pokemonVideo.pause()).catch(() => {});
 
-      const arSystem = sceneEl.systems["mindar-image-system"];
-      arSystem.start();
-      
-      // FORZAR REDIMENSIÓN (Quita el bloque blanco)
-      setTimeout(() => {
-        window.dispatchEvent(new Event('resize'));
-        log("Pantalla ajustada.");
-      }, 500);
+      // FUNCIÓN DE ARRANQUE SEGURO
+      const startAR = () => {
+        const arSystem = sceneEl.systems["mindar-image-system"];
+        
+        if (arSystem) {
+          log("Motor encontrado. Iniciando...");
+          arSystem.start();
+          
+          // Ajuste de pantalla para quitar el recuadro blanco
+          setTimeout(() => {
+            window.dispatchEvent(new Event('resize'));
+            log("Pantalla ajustada.");
+          }, 500);
+          
+        } else {
+          log("Motor no listo, reintentando...");
+          setTimeout(startAR, 300); // Reintenta cada 300ms hasta que exista
+        }
+      };
+
+      startAR();
     });
 
     const target = document.getElementById('target-anchor');
     target.addEventListener("targetFound", () => {
-      video.muted = false; 
-      video.play();
-      log("Detectado!");
+      log("¡Detectado!");
+      pokemonVideo.muted = false; 
+      pokemonVideo.play();
     });
 
     target.addEventListener("targetLost", () => {
-      video.pause();
+      pokemonVideo.pause();
     });
 
-    // Asegurar transparencia absoluta del fondo
+    // Forzar transparencia del canvas
     sceneEl.addEventListener('render-target-loaded', () => {
       sceneEl.renderer.setClearColor(0x000000, 0);
     });
