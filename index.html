@@ -19,7 +19,7 @@
     /* VISTA ESCRITORIO */
     #desktop {
       width: 100vw; height: 100vh;
-      display: none; /* Controlado por JS */
+      display: none;
       align-items: center; justify-content: center; flex-direction: column; gap: 20px;
       background: #0b1020;
     }
@@ -30,15 +30,16 @@
 
     /* VISTA MÓVIL */
     #mobile {
-      display: none; /* Controlado por JS */
+      display: none; 
       width: 100vw; height: 100vh;
     }
 
-    /* PANTALLA DE PERMISOS (Solo para móvil) */
+    /* PANTALLA DE PERMISOS */
     #mobile-overlay {
       position: fixed; inset: 0; z-index: 9999;
       background: #0b1020; color: white;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center; padding: 20px;
     }
 
     #mobile-overlay button {
@@ -48,7 +49,8 @@
 
     #debug {
       position: fixed; bottom: 10px; left: 10px; z-index: 99999;
-      background: rgba(0,0,0,0.8); color: #00ff88; padding: 10px; border-radius: 10px; font-size: 12px;
+      background: rgba(0,0,0,0.8); color: #00ff88; padding: 10px; border-radius: 10px; font-size: 11px;
+      max-width: 90%; word-wrap: break-word; pointer-events: none;
     }
   </style>
 </head>
@@ -62,15 +64,16 @@
   </div>
 
   <div id="mobile">
-    
     <div id="mobile-overlay">
       <h2>Experiencia AR</h2>
-      <p>Toca para activar tu cámara</p>
+      <p style="margin-top: 10px; color: #aaa; font-size: 0.9rem;">
+        Se requiere acceso a la cámara trasera.
+      </p>
       <button id="start-ar-btn">INICIAR CÁMARA</button>
     </div>
 
     <a-scene
-      mindar-image="imageTargetSrc: ./assets/targets.mind; autoStart: false; uiLoading: yes; uiScanning: yes; uiError: yes;"
+      mindar-image="imageTargetSrc: ./assets/targets.mind; autoStart: false; uiLoading: no; uiScanning: no; uiError: no;"
       color-space="sRGB"
       renderer="colorManagement: true; physicallyCorrectLights"
       vr-mode-ui="enabled: false"
@@ -90,14 +93,14 @@
     </a-scene>
   </div>
 
-  <div id="debug">DEBUG...</div>
+  <div id="debug">DOM Listo...</div>
 
   <script>
     const debug = document.getElementById("debug");
 
     function log(msg) {
       console.log(msg);
-      debug.innerHTML += "<br>" + msg;
+      debug.innerHTML += "<br>> " + msg;
     }
 
     function isMobile() {
@@ -105,53 +108,78 @@
     }
 
     window.addEventListener("DOMContentLoaded", () => {
-      log("DOM READY");
-
       if (isMobile()) {
-        log("MÓVIL DETECTADO");
+        log("Móvil: Mostrando overlay...");
         document.getElementById("desktop").style.display = "none";
         document.getElementById("mobile").style.display = "block";
       } else {
-        log("ESCRITORIO DETECTADO");
+        log("PC: Mostrando instrucciones...");
         document.getElementById("desktop").style.display = "flex";
         document.getElementById("mobile").style.display = "none";
       }
     });
 
-    // Lógica para encender la AR solo cuando el usuario toca el botón en el móvil
-    document.getElementById("start-ar-btn").addEventListener("click", () => {
-      log("Botón presionado, pidiendo cámara...");
+    document.getElementById("start-ar-btn").addEventListener("click", async () => {
+      log("Iniciando petición de cámara nativa...");
       
       const overlay = document.getElementById("mobile-overlay");
       const sceneEl = document.querySelector('a-scene');
       const video = document.getElementById('pokemon-video');
 
-      // 1. Ocultamos el overlay
-      overlay.style.display = "none";
+      try {
+        // 1. FORZAR AL NAVEGADOR A PEDIR PERMISO
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          throw new Error("Tu navegador no soporta AR o no es seguro (necesitas HTTPS).");
+        }
 
-      // 2. Truco para desbloquear el video en el celular
-      video.play().catch(() => {});
-      video.pause();
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: "environment" } 
+        });
+        
+        log("Permiso de cámara concedido.");
+        
+        // Detenemos este stream porque MindAR creará el suyo propio
+        stream.getTracks().forEach(track => track.stop());
 
-      // 3. Iniciamos MindAR manualmente
-      const arSystem = sceneEl.systems["mindar-image-system"];
-      arSystem.start();
+        // 2. Quitamos el overlay
+        overlay.style.display = "none";
 
-      // 4. Lógica de detección
-      sceneEl.addEventListener("arReady", () => log("Cámara encendida."));
-      sceneEl.addEventListener("arError", () => log("Error al acceder a la cámara."));
-
-      const target = document.querySelector('[mindar-image-target]');
-      target.addEventListener("targetFound", () => {
-        log("Marcador encontrado");
-        video.play();
-      });
-      target.addEventListener("targetLost", () => {
-        log("Marcador perdido");
+        // 3. Pre-cargamos el video del pokemon silenciosamente
+        video.play().catch(e => log("Video en espera..."));
         video.pause();
-      });
+
+        // 4. Arrancamos MindAR
+        log("Arrancando motor AR...");
+        const arSystem = sceneEl.systems["mindar-image-system"];
+        arSystem.start();
+
+      } catch (err) {
+        // AQUÍ ES DONDE VEREMOS QUÉ ESTÁ FALLANDO REALMENTE
+        log("ERROR CÁMARA: " + err.name);
+        
+        if (err.name === "NotAllowedError") {
+          log("Rechazaste el permiso. Limpia las cookies del sitio e intenta de nuevo.");
+        } else if (err.name === "NotFoundError") {
+          log("No se detectó ninguna cámara en el dispositivo.");
+        } else {
+          log("Detalle: " + err.message);
+        }
+      }
     });
 
+    // Eventos de A-Frame
+    const sceneEl = document.querySelector('a-scene');
+    sceneEl.addEventListener("arReady", () => log("Motor AR Listo y renderizando."));
+    
+    const target = document.querySelector('[mindar-image-target]');
+    target.addEventListener("targetFound", () => {
+      log("¡MARCADOR DETECTADO!");
+      document.getElementById('pokemon-video').play();
+    });
+    target.addEventListener("targetLost", () => {
+      log("Marcador perdido.");
+      document.getElementById('pokemon-video').pause();
+    });
   </script>
 </body>
 </html>
