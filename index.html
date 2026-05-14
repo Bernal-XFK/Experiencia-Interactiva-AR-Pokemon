@@ -2,224 +2,132 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0, user-scalable=no"
-  />
-
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
   <title>Pokemon AR</title>
 
-  <!-- AFRAME -->
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-
-  <!-- MINDAR -->
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 
   <style>
+    body { margin: 0; overflow: hidden; font-family: sans-serif; background: #000; }
 
-    *{
-      margin:0;
-      padding:0;
-      box-sizing:border-box;
+    /* Pantalla de escritorio */
+    #desktop {
+      position: fixed; inset: 0; background: #0b1020; color: white;
+      display: none; flex-direction: column; align-items: center; justify-content: center;
+      z-index: 2000; text-align: center; padding: 20px;
+    }
+    #desktop img { width: 300px; border-radius: 15px; margin: 20px 0; border: 3px solid #00ff88; }
+
+    /* Botón de inicio para móviles (Vital para permisos y video) */
+    #start-screen {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.9);
+      display: none; flex-direction: column; align-items: center; justify-content: center;
+      z-index: 3000; color: white;
+    }
+    #start-button {
+      padding: 15px 40px; font-size: 1.2rem; background: #00ff88; color: #000;
+      border: none; border-radius: 50px; cursor: pointer; font-weight: bold;
     }
 
-    html,
-    body{
-      width:100%;
-      height:100%;
-      overflow:hidden;
-      background:black;
-      font-family:Arial, sans-serif;
+    #debug {
+      position: fixed; bottom: 10px; left: 10px; z-index: 4000;
+      background: rgba(0,0,0,0.7); color: #00ff88; padding: 8px;
+      font-size: 10px; border-radius: 5px; pointer-events: none;
     }
-
-    #desktop{
-      width:100vw;
-      height:100vh;
-
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      flex-direction:column;
-
-      gap:20px;
-
-      background:#0b1020;
-    }
-
-    #desktop img{
-      width:320px;
-      max-width:80vw;
-
-      border-radius:20px;
-    }
-
-    #desktop h1{
-      color:white;
-    }
-
-    #desktop p{
-      color:#cccccc;
-      text-align:center;
-      max-width:500px;
-      line-height:1.5;
-    }
-
-    #mobile{
-      display:none;
-      width:100vw;
-      height:100vh;
-    }
-
-    #debug{
-      position:fixed;
-
-      bottom:10px;
-      left:10px;
-
-      z-index:99999;
-
-      background:rgba(0,0,0,0.8);
-
-      color:#00ff88;
-
-      padding:10px;
-
-      border-radius:10px;
-
-      font-size:12px;
-    }
-
   </style>
 </head>
-
 <body>
 
-  <!-- DESKTOP -->
+  <div id="debug">Iniciando sistema...</div>
 
   <div id="desktop">
-
     <h1>POKEMON AR EXPERIENCE</h1>
-
-    <img
-      src="./assets/marker.png"
-      alt="marker"
-    />
-
-    <p>
-      Abre esta misma página desde tu celular y apunta
-      la cámara a esta imagen.
-    </p>
-
+    <img src="./assets/marker.png" alt="marker" />
+    <p>Escanea este código con tu celular para ver la experiencia.</p>
   </div>
 
-  <!-- MOBILE -->
-
-  <div id="mobile">
-
-    <a-scene
-
-      mindar-image="
-        imageTargetSrc: ./assets/targets.mind;
-        autoStart: true;
-        uiLoading: yes;
-        uiScanning: yes;
-        uiError: yes;
-      "
-
-      color-space="sRGB"
-
-      renderer="colorManagement: true; physicallyCorrectLights"
-
-      vr-mode-ui="enabled: false"
-
-      device-orientation-permission-ui="enabled: false"
-
-      embedded
-
-    >
-
-      <a-assets>
-
-        <video
-          id="pokemon-video"
-          src="./assets/video.mp4"
-          preload="auto"
-          autoplay
-          loop
-          muted
-          playsinline
-          webkit-playsinline
-          crossorigin="anonymous"
-        ></video>
-
-      </a-assets>
-
-      <a-camera
-        position="0 0 0"
-        look-controls="enabled: false"
-      ></a-camera>
-
-      <a-entity mindar-image-target="targetIndex: 0">
-
-        <a-video
-          src="#pokemon-video"
-          position="0 0 0"
-          width="1"
-          height="1.77"
-        ></a-video>
-
-      </a-entity>
-
-    </a-scene>
-
+  <div id="start-screen">
+    <p style="margin-bottom: 20px;">Listo para la experiencia AR</p>
+    <button id="start-button">COMENZAR</button>
   </div>
 
-  <div id="debug">
-    DEBUG...
-  </div>
+  <a-scene 
+    id="ar-scene"
+    mindar-image="imageTargetSrc: ./assets/targets.mind; autoStart: false;" 
+    embedded color-space="sRGB" 
+    renderer="colorManagement: true; physicallyCorrectLights" 
+    vr-mode-ui="enabled: false" 
+    device-orientation-permission-ui="enabled: false">
+    
+    <a-assets>
+      <video id="pokemon-video" src="./assets/video.mp4" preload="auto" loop crossorigin="anonymous" playsinline webkit-playsinline></video>
+    </a-assets>
+
+    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+    <a-entity mindar-image-target="targetIndex: 0">
+      <a-video src="#pokemon-video" position="0 0 0" width="1" height="1.77"></a-video>
+    </a-entity>
+  </a-scene>
 
   <script>
-
     const debug = document.getElementById("debug");
+    const startScreen = document.getElementById("start-screen");
+    const desktop = document.getElementById("desktop");
+    const sceneEl = document.querySelector('a-scene');
+    const video = document.getElementById('pokemon-video');
+    const startButton = document.getElementById('start-button');
 
-    function log(msg){
-
+    function log(msg) {
       console.log(msg);
-
       debug.innerHTML += "<br>" + msg;
     }
 
-    function isMobile(){
-
-      return /Android|iPhone|iPad|iPod/i.test(
-        navigator.userAgent
-      );
+    function isMobile() {
+      return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     }
 
-    window.addEventListener("DOMContentLoaded", ()=>{
-
-      log("DOM READY");
-
-      if(isMobile()){
-
-        log("MOBILE DETECTED");
-
-        document.getElementById("desktop").style.display = "none";
-
-        document.getElementById("mobile").style.display = "block";
-
-      }else{
-
-        log("DESKTOP DETECTED");
-
-        document.getElementById("desktop").style.display = "flex";
-
-        document.getElementById("mobile").style.display = "none";
+    window.addEventListener("DOMContentLoaded", () => {
+      if (isMobile()) {
+        log("Dispositivo móvil detectado.");
+        startScreen.style.display = "flex";
+      } else {
+        log("Escritorio detectado.");
+        desktop.style.display = "flex";
       }
     });
 
-  </script>
+    startButton.addEventListener('click', () => {
+      log("Iniciando AR...");
+      
+      // 1. Ocultar pantalla de inicio
+      startScreen.style.display = "none";
+      
+      // 2. Iniciar motor MindAR manualmente
+      const arSystem = sceneEl.systems["mindar-image-system"];
+      arSystem.start(); 
 
+      // 3. Preparar el video (truco para iOS/Android)
+      video.play().then(() => {
+        log("Video listo y en reproducción.");
+      }).catch(err => {
+        log("Error video: " + err.message);
+      });
+    });
+
+    // Eventos de MindAR para saber si funciona el tracking
+    sceneEl.addEventListener("arReady", (event) => {
+       log("AR Listo - Cámara activa.");
+    });
+
+    sceneEl.addEventListener("arError", (event) => {
+       log("Error AR: " + event.detail.error);
+    });
+
+    sceneEl.addEventListener("targetFound", event => {
+      log("¡Target detectado!");
+    });
+  </script>
 </body>
 </html>
